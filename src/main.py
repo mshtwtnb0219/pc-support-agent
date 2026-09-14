@@ -6,29 +6,50 @@ import json
 
 # pingコマンド実行
 def ping(ip):
-    result = subprocess.run(["ping", ip],capture_output=True,text=True)
-    return {
-        "host": ip,
-        "success": result.returncode == 0,
-        "output": result.stdout
-    }
+    try:
+        result = subprocess.run(["ping", ip],capture_output=True,text=True, timeout=10)
+        return {
+            "host": ip,
+            "success": result.returncode == 0,
+            "output": result.stdout
+        }
+    except Exception as e:
+        return {
+            "host": ip,
+            "success":False,
+            "error": str(e)
+        }
+        
     
 # ipconfigコマンド実行
 def ipconfig():
-    result = subprocess.run(["ipconfig"],capture_output=True,text=True)
-    return {
-        "success": result.returncode == 0,
-        "output": result.stdout
-    }
+    try:
+        result = subprocess.run(["ipconfig"],capture_output=True,text=True)
+        return {
+            "success": result.returncode == 0,
+            "output": result.stdout
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 # nslookupコマンド
 def nslookup(host):
-    result = subprocess.run(["nslookup",host],capture_output=True,text=True)
-    return {
-        "host": host,
-        "success": result.returncode == 0,
-        "output": result.stdout
-    }
+    try:
+        result = subprocess.run(["nslookup",host],capture_output=True,text=True)
+        return {
+            "host": host,
+            "success": result.returncode == 0,
+            "output": result.stdout
+        }
+    except Exception as e:
+        return {
+            "host":host,
+            "success":False,
+            "error": str(e)
+        }
 
 # LLMに見せる「ツールの説明」ping
 pingTools = [
@@ -117,7 +138,7 @@ while True:
     count += 1
     print(f"Agent Loop開始： {count}")
     
-    if count >= 0:
+    if count >= 5:
         print("最大回数に到達したため終了します")
         break
     
@@ -136,7 +157,13 @@ while True:
             elif item.name == "ipconfig":
                 result = ipconfig()
             elif item.name == "nslookup":
-                reuslt = nslookup(arguments["host"])
+                arguments = json.loads(item.arguments)
+                result = nslookup(arguments["host"])
+            else:
+                result = {
+                    "success": False,
+                    "error":f"未対応のToolです：{item.name}"
+                }
                 
             result_json = json.dumps(result,ensure_ascii=False)
             # LLMに返却する情報を詰め込む
