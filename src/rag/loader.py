@@ -16,7 +16,7 @@ def load_documents():
         
     return documents
 
-
+# このファイルが直接実行されたときだけ、以下の処理を実行する
 if __name__ == "__main__":
     docs = load_documents()
 
