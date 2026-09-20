@@ -37,5 +37,24 @@ tools = [
             },
             "required": ["host"]
         }
+    },
+    {
+        "type": "function",
+        "name": "search_knowledge",
+        "description": (
+            "PCトラブルに関するナレッジを検索します。"
+            "トラブルの原因、確認手順、対処方法などの情報が必要な場合に使用してください。"
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "検索したいPCトラブルの内容"
+                }
+            },
+            "required": ["query"],
+            "additionalProperties": False
+        }
     }
 ]

@@ -5,6 +5,7 @@ from src.tools.definitions import tools
 from src.tools.ping import ping
 from src.tools.ipconfig import ipconfig
 from src.tools.nslookup import nslookup
+from src.tools.search_knowledge import search_knowledge
 
 
 INSTRUCTIONS = """
@@ -52,6 +53,9 @@ def run_agent(user_message: str) -> str:
             elif item.name == "nslookup":
                 arguments = json.loads(item.arguments)
                 result = nslookup(arguments["host"])
+            elif item.name == "search_knowledge":
+                arguments = json.loads(item.arguments)
+                result = search_knowledge(arguments["query"])
 
             else:
                 result = {
@@ -59,6 +63,8 @@ def run_agent(user_message: str) -> str:
                     "error": f"未対応のToolです：{item.name}"
                 }
 
+            print(f"[TOOL RESULT] {result}")
+            
             tool_outputs.append(
                 {
                     "type": "function_call_output",
@@ -79,3 +85,10 @@ def run_agent(user_message: str) -> str:
             input=tool_outputs,
             tools=tools
         )
+        
+if __name__ == "__main__":
+    print(
+        run_agent(
+            "DNSトラブルの確認手順を教えてください。"
+        )
+    )
