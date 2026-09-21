@@ -2,15 +2,30 @@
 from src.rag.loader import load_documents
 
 # 自力でChunk分割 100はデフォルト値
-def split_text(text: str, chunk_size: int = 100, overlap: int = 20) -> list[str]:
+def split_text(text: str, chunk_size: int = 100) -> list[str]:
+    
     chunks = []
+    current_chunk = ""
     
-    step = chunk_size - overlap
+    # 文字列を改行単位で分割する
+    lines = text.splitlines()
+    for line in lines:
+        candidate = current_chunk + line + "\n"
+        
+        # 現在のchunkに追加しても chunk_sizeを超えないなら追加
+        if len(current_chunk) <= chunk_size:
+            current_chunk = candidate
+        else:
+            # 今までため込んだものを1chunkとして確定
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+            # 今の行から次のchunkを開始
+            current_chunk = line + "\n"
     
-    for i in range(0,len(text), step):
-        # i:i → slice 〇文字以上、〇文字未満
-        chunk = text[i:i + chunk_size]
-        chunks.append(chunk)
+    # 最後のchunkを追加
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+    
     return chunks
     
     
