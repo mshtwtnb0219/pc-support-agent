@@ -21,10 +21,32 @@ INSTRUCTIONS = """
 """
 
 
-def run_agent(user_message: str) -> str:
+def run_agent(user_message: str, history: list) -> str:
+    
+    # OpenAIに渡すinputを作成する
+    input_message = []
+    
+    for chat_message in history:
+        role = (
+            "assistant"
+            if chat_message.role == "agent"
+            else "user"
+        )
+        
+        input_message.append({
+            "role": role,
+            "content":chat_message.content
+        })
+    
+    # 今回の質問を最後に追加
+    input_message.append({
+        "role": "user",
+        "content": user_message
+    })
+
     response = client.responses.create(
         model="gpt-5.5",
-        input=user_message,
+        input=input_message,
         instructions=INSTRUCTIONS,
         tools=tools
     )
@@ -89,6 +111,7 @@ def run_agent(user_message: str) -> str:
 if __name__ == "__main__":
     print(
         run_agent(
-            "DNSトラブルの確認手順を教えてください。"
+            "DNSトラブルの確認手順を教えてください。",
+            []
         )
     )

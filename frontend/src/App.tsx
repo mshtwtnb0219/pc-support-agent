@@ -1,6 +1,6 @@
-import { Box, Button, Container, Heading, Input, Text } from "@chakra-ui/react"
+import { Box, Button, Container, Flex, Heading, Input, Text } from "@chakra-ui/react"
 import ReactMarkdown from "react-markdown"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 
 type ChatMessage = {
@@ -13,18 +13,39 @@ function App() {
 
   const [message, setMessage] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  // loading
   const [loading, setLoading] = useState(false)
+
+  // メッセージが追加されたら自動で一番下へスクロール
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth"
+    })
+  }, [messages, loading])
+
+
+
 
 
   const handleSubmit = async () => {
+
+    // 空文字の場合
+    if (!message.trim() || loading) {
+      return
+    }
+
+    const currentMessage = message
+    setMessage("")
+
     try {
       setLoading(true)
 
       // 履歴の作成 質問
       const userMessage: ChatMessage = {
         role: "user",
-        content: message
+        content: currentMessage
       }
       setMessages((prev) => [...prev, userMessage])
 
@@ -34,9 +55,16 @@ function App() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message: message,
+          message: currentMessage,
+          history: messages,
         }),
       })
+
+      if (response.status === 429) {
+        throw new Error(
+          "APIの利用上限に達したか、一時的にリクエストが集中しています。しばらくしてからもう一度お試しください。"
+        )
+      }
 
       if (!response.ok) {
         throw new Error("APIリクエストに失敗しました")
@@ -50,12 +78,14 @@ function App() {
         content: data.answer
       }
       setMessages((prev) => [...prev, agentMessage])
-      setMessage("")
 
     } catch (error) {
       const errorMessage: ChatMessage = {
         role: "agent",
-        content: `エラーが発生しました。もう一度お試しください。: ${error}`,
+        content:
+          error instanceof Error
+            ? error.message
+            : "予期しないエラーが発生しました。",
       }
 
       setMessages((prev) => [...prev, errorMessage])
@@ -78,28 +108,87 @@ function App() {
         </Text>
 
         <Box mt="8">
-          <Input value={message} onChange={(e) => setMessage(e.target.value)} placeholder="例：インターネットにつながりません" />
-          <Button mt="3" onClick={handleSubmit} disabled={loading}>
-            {loading ? "回答生成中...." : "送信"}
-          </Button>
 
+          {/* チャット履歴 */}
+          <Box
+            h="500px"
+            overflowY="auto"
+            p="4"
+            bg="gray.50"
+            borderRadius="lg"
+          >
+            {messages.map((chatMessage, index) => (
+              <Flex
+                key={index}
+                justifyContent={
+                  chatMessage.role === "user" ? "flex-end" : "flex-start"
+                }
+                mt="4"
+              >
+                <Box
+                  maxW="80%"
+                  p="4"
+                  bg={chatMessage.role === "user" ? "blue.100" : "white"}
+                  borderRadius="lg"
+                  boxShadow="sm"
+                >
+                  <Text fontWeight="bold" mb="2">
+                    {chatMessage.role === "user" ? "あなた" : "Agent"}
+                  </Text>
 
-          {messages.map((chatMessage, index) => (
-            <Box
-              key={index}
-              mt="4"
-              p="4"
-              bg={chatMessage.role === "user" ? "gray.100" : "white"}
+                  <ReactMarkdown>
+                    {chatMessage.content}
+                  </ReactMarkdown>
+                </Box>
+              </Flex>
+            ))}
+
+            {/* 回答生成中 */}
+            {loading && (
+              <Flex justifyContent="flex-start" mt="4">
+                <Box
+                  maxW="80%"
+                  p="4"
+                  bg="white"
+                  borderRadius="lg"
+                  boxShadow="sm"
+                >
+                  <Text fontWeight="bold" mb="2">
+                    Agent
+                  </Text>
+
+                  <Text color="gray.500">
+                    回答を生成中...
+                  </Text>
+                </Box>
+              </Flex>
+            )}
+
+            {/* 自動スクロールの移動先 */}
+            <div ref={bottomRef} />
+          </Box>
+
+          {/* 入力エリア */}
+          <Flex gap="2" mt="4">
+            <Input
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSubmit()
+                }
+              }}
+              placeholder="例：インターネットにつながりません"
+            />
+
+            <Button
+              onClick={handleSubmit}
+              disabled={loading || !message.trim()}
             >
-              <Text fontWeight="bold" mb="2">
-                {chatMessage.role === "user" ? "あなた" : "Agent"}
-              </Text>
+              {loading ? "回答生成中..." : "送信"}
+            </Button>
+          </Flex>
 
-              <ReactMarkdown>
-                {chatMessage.content}
-              </ReactMarkdown>
-            </Box>
-          ))}
         </Box>
       </Container>
     </Box>
