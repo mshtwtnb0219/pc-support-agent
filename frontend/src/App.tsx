@@ -66,6 +66,10 @@ function App() {
         )
       }
 
+      if (response.status >= 500) {
+        throw new Error("サーバーでエラーが発生しました。しばらくしてからもう一度お試しください。");
+      }
+
       if (!response.ok) {
         throw new Error("APIリクエストに失敗しました")
       }

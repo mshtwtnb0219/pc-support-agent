@@ -63,7 +63,9 @@ def chat(request: ChatRequest):
     #     )
 
     try:
-        answer = run_agent(request.message, request.history)
+        # 最後の10件だけ取り出す
+        limited_history = request.history[:-10]
+        answer = run_agent(request.message, limited_history)
         return {"answer": answer}
     except RateLimitError:
         raise HTTPException(
