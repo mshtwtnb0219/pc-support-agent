@@ -468,6 +468,63 @@ Cloud FastAPI
 - SupabaseのRLSは公開環境に合わせて適切に設定する必要があります。
 - 公開環境ではAPIのRate Limitなど、追加の対策が必要です。
 
+### Docker Environment
+
+Docker環境ではFastAPIがLinuxコンテナ上で動作するため、
+Windows固有の `ipconfig` Toolは利用できません。
+
+また、Linux向けのネットワークコマンドへ置き換えた場合でも、
+取得できるのはユーザーPCではなくコンテナ自身のネットワーク情報です。
+
+そのため、Docker環境はWeb API・Agent・RAGの動作確認を主な目的とし、
+ローカルPCのネットワーク診断はWindows上でFastAPIを直接実行する構成を使用します。
+
+## Docker
+
+FastAPIバックエンドはDockerコンテナ上でも起動できます。
+
+### Build
+
+プロジェクトルートでDocker Imageを作成します。
+
+```powershell
+docker build -t pc-support-agent .
+```
+
+### Run
+
+`.env` の環境変数をコンテナへ渡して起動します。
+
+```powershell
+docker run --name pc-support-agent-api -p 8000:8000 --env-file .env pc-support-agent
+```
+
+起動後、以下からFastAPIへアクセスできます。
+
+```text
+http://127.0.0.1:8000
+```
+
+Swagger UI:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### Docker Environment Limitations
+
+Docker環境ではFastAPIがLinuxコンテナ上で動作するため、
+Windows固有の `ipconfig` Toolは利用できません。
+
+Linux向けのネットワークコマンドへ置き換えた場合でも、
+取得されるのはユーザーPCではなくコンテナ自身のネットワーク情報です。
+
+そのため、Docker環境はFastAPI・AI Agent・RAG・Frontend連携の
+動作確認を主な目的としています。
+
+ローカルPCのネットワーク診断Toolを利用する場合は、
+Windows上でFastAPIを直接起動してください。
+
 ## Future Improvements
 
 - ローカル診断用クライアントの実装
