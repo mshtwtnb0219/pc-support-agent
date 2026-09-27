@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 from src.agent import run_agent
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Literal
@@ -30,7 +30,7 @@ class ChatMessage(BaseModel):
     
 class ChatRequest(BaseModel):
     message: str
-    history: list[ChatMessage] = []
+    history: list[ChatMessage] = Field(default_factory=list)
     
 #　　JSONのイメージ 
 # {

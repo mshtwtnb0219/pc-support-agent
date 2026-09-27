@@ -1,277 +1,480 @@
 # PC Support Agent
 
-Windows PC のネットワークトラブルを自動調査する AI エージェントです。
+PCのネットワークトラブルを診断するAIエージェントです。
 
-ユーザーから「インターネットにつながらない」などの問い合わせを受けると、
-LLM が状況に応じて必要なネットワークコマンドを選択・実行し、
-その結果をもとに原因候補や対処方法を提示します。
+OpenAI Responses APIのFunction Callingを利用し、
+ユーザーの質問に応じてネットワーク診断ツールやRAGによる
+ナレッジ検索を自律的に実行します。
 
-## 概要
+## Features
 
-OpenAI Responses API の Function Calling / Tool Calling を利用しています。
+- OpenAI Responses APIを利用したAIエージェント
+- Function Callingによるツールの自律実行
+- ping / ipconfig / nslookupによるネットワーク診断
+- Supabase + pgvectorを利用したRAG
+- SHA-256によるナレッジの差分インデックス
+- FastAPIによるバックエンドAPI
+- React + TypeScriptによるチャットUI
+- マルチターン会話
+- Markdown表示
+- エラーハンドリング
 
-LLM が単純に回答を生成するだけではなく、調査に必要な Tool を自律的に選択します。
-
-現在は以下の Windows コマンドに対応しています。
-
-- `ipconfig`
-- `ping`
-- `nslookup`
-
-Tool の実行結果を LLM に返却し、さらに調査が必要であれば次の Tool を実行する
-Agent Loop を実装しています。
-
-## 主な機能
-
-- PC の IP アドレス・ネットワーク情報の取得
-- デフォルトゲートウェイへの疎通確認
-- インターネット上のホストへの疎通確認
-- DNS 名前解決の確認
-- LLM による Tool の自律選択
-- 複数 Tool の連続実行
-- Tool の実行結果を利用した追加調査
-- 原因候補・確認結果・対処方法の生成
-- Tool 実行時の例外処理
-- コマンドのタイムアウト制御
-- Agent Loop の最大実行回数による無限ループ防止
-
-## Agent Loop
-
-本アプリでは、LLM が一度だけ回答するのではなく、
-Tool の実行結果をもとに次の行動を判断する Agent Loop を実装しています。
+## Architecture
 
 ```text
-ユーザー
-「インターネットにつながらない」
-        ↓
-       LLM
-        ↓
- Tool Call が必要？
-    ↓ Yes      ↓ No
- Toolを実行    最終回答
-    ↓
- 実行結果をLLMへ返却
-    ↓
-       LLM
-    ↓
- 次の調査が必要？
+React
+  │
+  │ POST /chat
+  ▼
+FastAPI
+  │
+  ▼
+AI Agent
+  │
+  ├── ping
+  ├── ipconfig
+  ├── nslookup
+  │
+  └── search_knowledge
+          │
+          ▼
+      Embedding
+          │
+          ▼
+   Supabase / pgvector
 ```
 
-例えば、以下のような調査を自律的に行います。
+## Tech Stack
 
-```text
-ipconfig
-   ↓
-ping 192.168.x.x
-   ↓
-ping 8.8.8.8
-   ↓
-nslookup www.google.com
-   ↓
-必要に応じて追加調査
-   ↓
-原因候補・確認結果・対処方法を回答
-```
-
-実際に使用する Tool や実行順序は固定しておらず、
-LLM がそれまでの調査結果をもとに判断します。
-
-## Tool
-
-### ipconfig
-
-Windows の `ipconfig` コマンドを実行し、PC のネットワーク情報を取得します。
-
-主に以下の確認に使用します。
-
-- IPv4 / IPv6 アドレス
-- サブネットマスク
-- デフォルトゲートウェイ
-- ネットワークアダプターの状態
-
-### ping
-
-Windows の `ping` コマンドを実行し、指定したホストへの疎通を確認します。
-
-例えば以下のような調査に利用します。
-
-```text
-ping 192.168.1.1
-ping 8.8.8.8
-ping www.google.com
-```
-
-### nslookup
-
-Windows の `nslookup` コマンドを実行し、DNS の名前解決を確認します。
-
-```text
-nslookup www.google.com
-```
-
-IP アドレスへの通信は成功しているにもかかわらず Web サイトへ接続できない場合などに、
-DNS が正常に動作しているかを調査できます。
-
-## 使用技術
+### Backend
 
 - Python
+- FastAPI
 - OpenAI Responses API
-- Function Calling / Tool Calling
-- Python `subprocess`
-- python-dotenv
-- Windows ネットワークコマンド
+- OpenAI Embeddings API
+- Supabase
+- pgvector
 
-## セットアップ
+### Frontend
 
-### 1. リポジトリをクローン
+- React
+- TypeScript
+- Vite
+- Chakra UI
+- React Markdown
+
+### AI / RAG
+
+- Function Calling
+- Agent Loop
+- Embeddingによるベクトル検索
+- Supabase / pgvectorによるナレッジ検索
+- SHA-256によるナレッジの差分更新
+
+## Project Structure
+
+```text
+pc-support-agent/
+├── main.py                     # FastAPI エントリーポイント
+├── src/
+│   ├── agent.py                # Agent Loop
+│   ├── openai_client.py        # OpenAI クライアント
+│   ├── supabase_client.py      # Supabase クライアント
+│   │
+│   ├── tools/
+│   │   ├── definitions.py      # Function Calling のTool定義
+│   │   ├── ping.py             # ping実行
+│   │   ├── ipconfig.py         # ipconfig実行
+│   │   ├── nslookup.py         # nslookup実行
+│   │   └── search_knowledge.py # RAG検索Tool
+│   │
+│   └── rag/
+│       ├── loader.py           # ナレッジファイル読み込み
+│       ├── chunker.py          # テキスト分割
+│       ├── embedding.py        # Embedding生成
+│       ├── retriever.py        # pgvectorによる類似検索
+│       ├── generator.py        # RAG単体の回答生成
+│       └── indexer.py          # ナレッジの登録・差分更新
+│
+├── knowledge/
+│   └── network_trouble.txt     # PCトラブルのナレッジ
+│
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx             # チャット画面
+│   │   └── main.tsx            # Reactエントリーポイント
+│   └── package.json
+│
+├── .env                        # 環境変数（Git管理対象外）
+├── .gitignore
+└── README.md
+```
+
+## Setup
+
+### 1. Repository Clone
 
 ```bash
 git clone <repository-url>
 cd pc-support-agent
 ```
 
-### 2. 仮想環境を作成
+### 2. Backend Setup
 
-```bash
-py -m venv .venv
-```
+Pythonの仮想環境を作成します。
 
-### 3. 仮想環境を有効化
-
-PowerShell の場合：
+#### Windows PowerShell
 
 ```powershell
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-### 4. 必要なライブラリをインストール
-
-```bash
-pip install openai python-dotenv
-```
-
-### 5. OpenAI API Key を設定
-
-プロジェクト直下に `.env` を作成します。
-
-```env
-OPENAI_API_KEY=your_api_key
-```
-
-`.env` は Git の管理対象に含めないでください。
-
-```gitignore
-.env
-.venv/
-```
-
-## 実行方法
-
-`src` ディレクトリへ移動して実行します。
+依存ライブラリをインストールします。
 
 ```powershell
-cd src
-py .\main.py
+python -m pip install -r requirements.txt
 ```
 
-現在の v1 では、以下のような問い合わせをプログラムから LLM に渡して動作させています。
+### 3. Environment Variables
+
+プロジェクト直下に `.env` を作成し、以下の環境変数を設定します。
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_key
+```
+
+`.env` はGit管理対象に含めないでください。
+
+### 4. Supabase Setup
+
+Supabaseでプロジェクトを作成し、pgvector拡張を有効化します。
+
+```sql
+create extension if not exists vector;
+```
+
+RAGで使用するテーブルを作成します。
+
+```sql
+create table rag_documents (
+    id bigint generated always as identity primary key,
+    source text not null,
+    content text not null,
+    embedding vector(1536) not null,
+    file_hash text
+);
+```
+
+ベクトル類似検索用のFunctionを作成します。
+
+```sql
+create or replace function match_rag_documents(
+    query_embedding vector(1536),
+    match_count int default 3
+)
+returns table (
+    id bigint,
+    source text,
+    content text,
+    similarity float
+)
+language sql
+stable
+as $$
+    select
+        id,
+        source,
+        content,
+        1 - (embedding <=> query_embedding) as similarity
+    from rag_documents
+    order by embedding <=> query_embedding
+    limit match_count;
+$$;
+```
+
+> SupabaseのRLS（Row Level Security）は利用環境に合わせて適切に設定してください。
+> 開発用の無制限なアクセス許可をそのまま公開環境で使用しないでください。
+
+### 5. RAG Indexing
+
+`knowledge/` 配下にナレッジとなるテキストファイルを配置します。
 
 ```text
-インターネットがつながりません。原因を調べてください。
+knowledge/
+└── network_trouble.txt
 ```
 
-## 実行例
+以下のコマンドでナレッジをSupabaseへ登録します。
+
+```powershell
+python -m src.rag.indexer
+```
+
+Indexerでは、ナレッジをチャンクに分割してEmbeddingを生成し、
+Supabase / pgvectorへ保存します。
 
 ```text
-Agent Loop開始： 1
-呼び出されたTool： ipconfig
-
-Agent Loop開始： 2
-呼び出されたTool： ping
-呼び出されたTool： ping
-呼び出されたTool： nslookup
-
-Agent Loop開始： 3
-呼び出されたTool： ping
-
-Agent Loop開始： 4
-
-調査結果：
-PCからインターネットへの疎通は正常です。
-
-確認結果：
-- Wi-Fi 接続：正常
-- デフォルトゲートウェイへの疎通：正常
-- インターネットへの疎通：正常
-- DNS 名前解決：正常
-
-原因として、ブラウザ・VPN・プロキシなどの
-ネットワーク以外の問題が考えられます。
+knowledge/*.txt
+      │
+      ▼
+    Loader
+      │
+      ▼
+   Chunker
+      │
+      ▼
+  Embedding
+      │
+      ▼
+Supabase / pgvector
 ```
 
-※ 実際の Tool の選択や実行回数は LLM の判断によって変化します。
+ファイル内容からSHA-256ハッシュを生成し、前回登録時と比較することで、
+変更のないファイルは再インデックスせず、変更されたファイルのみ更新します。
 
-## エラー処理
+### 6. Frontend Setup
 
-各 Windows コマンドは `try / except` を利用して実行しています。
+`frontend` ディレクトリへ移動します。
 
-コマンド実行中にエラーが発生した場合でもアプリケーション全体を停止させず、
-エラー情報を Tool の実行結果として扱えるようにしています。
+```powershell
+cd frontend
+```
 
-また、`subprocess.run()` にタイムアウトを設定し、
-コマンドが長時間終了しない場合に Agent 全体が停止することを防いでいます。
+依存パッケージをインストールします。
 
-Agent Loop にも最大実行回数を設定し、
-LLM が Tool Call を繰り返した場合の無限ループを防止しています。
+```powershell
+npm install
+```
 
-## プロジェクトの目的
+### 7. Run Application
 
-このプロジェクトは AI エージェントの仕組みを学習することを目的として開発しています。
+バックエンドとフロントエンドをそれぞれ起動します。
 
-LangChain / LangGraph などの Agent フレームワークを最初から使用せず、
-OpenAI API の Function Calling と Python を使って Agent Loop を実装しています。
+#### Backend
 
-これにより、以下の流れを自分で実装しながら理解することを目的としています。
+プロジェクトルートで仮想環境を有効化し、FastAPIを起動します。
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn main:app --reload
+```
+
+FastAPI:
 
 ```text
-LLMによる判断
-    ↓
-Function Calling
-    ↓
-PythonによるTool実行
-    ↓
-実行結果をLLMへ返却
-    ↓
-次の行動をLLMが判断
+http://127.0.0.1:8000
 ```
 
-## 今後の予定
+Swagger UI:
 
-### v2
+```text
+http://127.0.0.1:8000/docs
+```
 
-v2 では Web アプリケーション化を予定しています。
+#### Frontend
 
-- FastAPI によるバックエンド API 化
-- React による Web UI
-- ユーザーからのトラブル内容の入力
-- Web UI 上での診断結果表示
-- RAG を利用したトラブルシューティング情報の検索
+別のターミナルで `frontend` ディレクトリへ移動し、Viteを起動します。
 
-RAG では、FAQ・Windows のトラブルシューティング資料・仮想的な社内 IT マニュアルなどを検索し、
-Tool による実機調査とドキュメント検索を組み合わせた診断を目指します。
+```powershell
+cd frontend
+npm run dev
+```
 
-### 将来的な学習候補
+ブラウザから以下へアクセスします。
 
-v1 / v2 の基礎を理解した後、必要に応じて以下の技術についても学習予定です。
+```text
+http://localhost:5173
+```
 
-- MCP
-- LangChain
-- LangGraph
-- Multi-Agent
+## Usage
 
-## Version
+チャット画面からPCのネットワークトラブルについて質問します。
 
-**v1**
+例：
 
-OpenAI Responses API と Function Calling を利用した、
-Windows ネットワークトラブル診断 Agent の基本機能を実装。
+```text
+インターネットにつながりません。
+```
+
+AI Agentは質問内容と会話履歴をもとに、必要なToolを選択して実行します。
+
+## Agent Workflow
+
+AgentはOpenAI Responses APIのFunction Callingを利用して、
+必要な情報が揃うまでToolの実行と結果の確認を繰り返します。
+
+```text
+User
+  │
+  ▼
+React Chat UI
+  │
+  ▼
+FastAPI
+  │
+  ▼
+AI Agent
+  │
+  ├─ 回答可能 ──────────────────┐
+  │                              │
+  └─ Toolが必要                  │
+       │                         │
+       ▼                         │
+   Function Calling              │
+       │                         │
+       ├─ ping                   │
+       ├─ ipconfig               │
+       ├─ nslookup               │
+       └─ search_knowledge       │
+              │                  │
+              ▼                  │
+         Tool Result             │
+              │                  │
+              └──────► AI Agent ─┘
+                         │
+                         ▼
+                    Final Answer
+```
+
+### Available Tools
+
+| Tool               | Description                             |
+| ------------------ | --------------------------------------- |
+| `ping`             | 指定したIPアドレスへの疎通を確認        |
+| `ipconfig`         | ネットワークインターフェース情報を取得  |
+| `nslookup`         | DNSによる名前解決を確認                 |
+| `search_knowledge` | RAGを利用してPCトラブルのナレッジを検索 |
+
+Agent自身が質問内容から必要なToolを判断するため、
+ユーザーが実行するToolを指定する必要はありません。
+
+## RAG Workflow
+
+PCトラブルに関するナレッジは、事前にEmbeddingを生成して
+Supabase / pgvectorへ保存します。
+
+### Indexing
+
+```text
+knowledge/*.txt
+      │
+      ▼
+    Loader
+      │
+      ▼
+    Chunker
+      │
+      ▼
+OpenAI Embeddings
+      │
+      ▼
+Supabase / pgvector
+```
+
+Indexerはファイル内容からSHA-256ハッシュを生成し、
+既存データと比較して更新の必要性を判定します。
+
+```text
+File
+ │
+ ▼
+SHA-256
+ │
+ ▼
+Compare file_hash
+ │
+ ├─ NEW    → Index
+ ├─ SKIP   → No update
+ └─ UPDATE → Delete old chunks → Re-index
+```
+
+### Retrieval
+
+Agentがナレッジを必要と判断すると、
+`search_knowledge` Toolを呼び出します。
+
+```text
+User Question
+      │
+      ▼
+search_knowledge
+      │
+      ▼
+Question Embedding
+      │
+      ▼
+pgvector Similarity Search
+      │
+      ▼
+Relevant Chunks
+      │
+      ▼
+AI Agent
+      │
+      ▼
+Final Answer
+```
+
+ベクトル間の類似度にはCosine Similarityを利用し、
+質問内容に近いナレッジを取得します。
+
+## Notes / Limitations
+
+### Local Diagnostic Tools
+
+`ping`、`ipconfig`、`nslookup` はFastAPIが動作しているマシン上で実行されます。
+
+そのため、ローカル環境ではPC自身のネットワーク診断に利用できますが、
+FastAPIをクラウド環境へデプロイした場合は、ユーザーのPCではなく
+クラウドサーバー上でコマンドが実行されます。
+
+```text
+Local
+
+Browser
+   │
+   ▼
+Local FastAPI
+   │
+   └─ ping / ipconfig / nslookup
+              │
+              ▼
+           Local PC
+```
+
+```text
+Cloud
+
+Browser
+   │
+   ▼
+Cloud FastAPI
+   │
+   └─ ping / ipconfig / nslookup
+              │
+              ▼
+         Cloud Server
+```
+
+ブラウザからユーザーPC上のOSコマンドを直接実行することはできないため、
+公開環境でローカルPCを診断するには別途ローカルクライアントなどの仕組みが必要です。
+
+### Security
+
+- `.env` やAPIキーはGitリポジトリへコミットしないでください。
+- SupabaseのRLSは公開環境に合わせて適切に設定する必要があります。
+- 公開環境ではAPIのRate Limitなど、追加の対策が必要です。
+
+## Future Improvements
+
+- ローカル診断用クライアントの実装
+- ナレッジデータの拡充
+- RAG検索精度の改善
+- 会話履歴管理の改善
+- API Rate Limitの実装
+- 認証機能
+- Dockerによるコンテナ化
+- Webアプリケーションのデプロイ
